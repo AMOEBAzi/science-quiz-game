@@ -1,4 +1,4 @@
-# 🔬 과학 퀴즈 게임 (Science Quiz Game)
+﻿# 🔬 과학 퀴즈 게임 (Science Quiz Game)
 
 ## 📖 프로젝트 개요
 
@@ -364,3 +364,6 @@ c3cd1eb Feat: QuizGame 클래스 구현 - 게임 전체 로직 및 메뉴 관리
 **마지막 업데이트**: 2026-11-05  
 **작성자**: 코디세이 학습자  
 **GitHub**: https://github.com/AMOEBAzi/science-quiz-game
+
+---
+**Clone된 저장소에서 수정됨 (2026-11-05)**
