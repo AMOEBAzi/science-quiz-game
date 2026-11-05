@@ -5,6 +5,7 @@ QuizGame 클래스: 퀴즈 게임 전체를 관리하는 클래스
 import json
 import os
 from quiz import Quiz
+from quiz_data import get_additional_quizzes
 
 
 class QuizGame:
@@ -77,7 +78,7 @@ class QuizGame:
 
     def _get_default_quizzes(self):
         """
-        기본 과학 퀴즈 5개 반환
+        기본 과학 퀴즈 10개 반환 (기본 5개 + 추가 5개)
 
         Returns:
             list: 기본 Quiz 객체 리스트
@@ -109,6 +110,10 @@ class QuizGame:
                 2
             ),
         ]
+
+        # 추가 퀴즈 통합
+        default_quizzes.extend(get_additional_quizzes())
+
         return default_quizzes
 
     def display_menu(self):
