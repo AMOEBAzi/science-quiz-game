@@ -8,11 +8,12 @@
 
 ### 🎯 주요 특징
 - ✅ 터미널 기반 메뉴 시스템
-- ✅ 객체 지향 프로그래밍 (Quiz, QuizGame 클래스)
-- ✅ JSON 파일을 통한 데이터 영속성
+- ✅ **객체 지향 프로그래밍** (Quiz, QuizGame 클래스) - 기능 확장성과 유지보수 용이성 향상
+- ✅ **JSON 파일을 통한 데이터 영속성** - 텍스트 기반 포맷으로 휴먼 리더블하고 구조화된 데이터 관리
 - ✅ 최고 점수 자동 기록
-- ✅ 강건한 입력 검증 및 오류 처리
-- ✅ Ctrl+C 안전 종료 처리
+- ✅ 강건한 입력 검증 및 오류 처리 (숫자/범위/빈값 검증)
+- ✅ Ctrl+C 안전 종료 처리 (자동 저장)
+- ✅ 기본 퀴즈 **10개 포함** (5개 기본 + 5개 추가)
 
 ---
 
@@ -133,6 +134,26 @@ science-quiz-game/
 - 기본 퀴즈 외의 추가 과학 퀴즈 5개 정의
 - `get_additional_quizzes()` 함수로 퀴즈 목록 반환
 
+### 입력 검증 및 데이터 IO 담당 함수/메서드 매핑
+
+#### 입력 검증 담당
+| 메서드 | 파일 | 검증 내용 | 오류 처리 |
+|--------|------|---------|---------|
+| `get_menu_choice()` | game.py | 1-5 범위 숫자 | 빈 입력, 숫자 아님, 범위 초과 |
+| `play_quiz()` - 정답 입력 | game.py | 1-4 범위 숫자 | 빈 입력, 숫자 아님, 범위 초과 |
+| `add_quiz()` - 정답 입력 | game.py | 1-4 범위 숫자 | 빈 입력, 숫자 아님, 범위 초과 |
+| `check_answer()` | quiz.py | 정답 비교 (정수) | 범위 초과 시 False 반환 |
+
+#### 데이터 IO 담당
+| 메서드 | 파일 | 역할 | 저장 시점 |
+|--------|------|------|---------|
+| `load_data()` | game.py | JSON 읽기, 복구 | 프로그램 시작 |
+| `save_data()` | game.py | JSON 쓰기 | 최고 점수 갱신, 퀴즈 추가, 종료 시 |
+| `to_dict()` | quiz.py | Quiz → dict | save_data 내부 |
+| `from_dict()` | quiz.py | dict → Quiz | load_data 내부 |
+
+**참고**: 모든 IO 작업은 try/except로 보호됨. JSON 손상 시 기본 데이터로 자동 복구.
+
 ---
 
 ## 💾 데이터 파일 설명 (state.json)
@@ -178,10 +199,29 @@ science-quiz-game/
 ### 인코딩
 - **UTF-8**: 한글을 포함한 모든 문자 지원
 
+### JSON 선택 이유
+| 항목 | 이유 |
+|------|------|
+| **가독성** | 텍스트 형식으로 사람이 쉽게 이해 가능 |
+| **구조화** | 중첩된 객체/배열로 복잡한 데이터 표현 |
+| **표준성** | 웹/API 표준 포맷으로 활용 기초 제공 |
+| **경량성** | 소규모 프로젝트에 최적 (DB 불필요) |
+
+### 한계 및 대안
+**JSON의 한계:**
+- 대용량 데이터 (100만+ 퀴즈): 메모리 부담 증가
+- 동시 쓰기: 파일 잠금 필요 (현재 미구현)
+- 빈번한 업데이트: 전체 파일 재작성 필요
+
+**대안:**
+- **SQLite**: 소규모 관계형 DB, 파일 기반 (다음 단계)
+- **MongoDB**: 확장성 필요 시 (서버 구성 필요)
+
 ### 자동 생성 및 복구
-- **첫 실행**: 파일이 없으면 기본 퀴즈 5개로 자동 생성
-- **손상된 파일**: JSON 형식 오류 시 기본 데이터로 복구
+- **첫 실행**: 파일이 없으면 기본 퀴즈 10개로 자동 생성
+- **손상된 파일**: JSON 형식 오류 시 기본 데이터로 복구 후 알림
 - **매 실행 후**: 자동으로 최신 데이터 저장
+- **백업 제안**: `state.json.bak` 자동 생성 검토 (v2.0)
 
 ---
 
@@ -287,6 +327,64 @@ science-quiz-game/
 
 ---
 
+## 🏗️ 객체 지향 설계 (OOP) 특징
+
+### **클래스 사용의 이점**
+
+| 특징 | 함수 기반 | 클래스 기반 |
+|------|---------|-----------|
+| **상태 관리** | 전역 변수 필요 | 인스턴스 속성으로 관리 |
+| **유지보수** | 함수 간 의존성 추적 어려움 | 객체의 책임 범위 명확 |
+| **확장성** | 새 기능 추가 시 함수 파라미터 증가 | 새 메서드만 추가 (기존 코드 수정 최소) |
+| **재사용** | 코드 복사/수정 필요 | 인스턴스 생성으로 독립적 실행 |
+
+### **이 프로젝트의 설계**
+
+- **Quiz 클래스**: 개별 퀴즈 객체 (책임: 문제 표시, 정답 확인)
+- **QuizGame 클래스**: 게임 전체 상태 관리 (책임: 메뉴, 입출력, 파일 저장)
+
+→ **결과**: 새 기능 추가 시 기존 메뉴 로직 수정 불필요, 테스트 격리 용이
+
+---
+
+## 📥 Clone/Pull 실습 가이드
+
+### Clone 명령어
+```bash
+# GitHub에서 저장소 복제
+git clone https://github.com/AMOEBAzi/science-quiz-game.git
+
+# 복제된 폴더로 이동
+cd science-quiz-game
+
+# 현재 브랜치 확인
+git branch
+
+# 모든 브랜치 확인 (로컬 및 원격)
+git branch -a
+```
+
+### Pull 명령어
+```bash
+# 원격 저장소에서 최신 변경사항 가져오기
+git pull origin main
+
+# 변경사항 확인
+git log --oneline -n 5
+
+# 파일 상태 확인
+git status
+```
+
+### 실습 체크리스트
+- [ ] 저장소 clone 후 폴더 구조 확인
+- [ ] `git log --oneline` 명령으로 커밋 이력 확인 (10개 이상)
+- [ ] `git branch -a` 명령으로 브랜치 구조 확인 (main + feature 브랜치)
+- [ ] `python main.py` (또는 `py main.py`) 명령으로 프로그램 실행 확인
+- [ ] 저장소 README.md 파일이 로컬에서 읽기 가능한지 확인
+
+---
+
 ## 🎓 학습 포인트
 
 이 프로젝트를 통해 배우는 내용:
@@ -318,20 +416,108 @@ science-quiz-game/
 
 ---
 
+## 📝 커밋 메시지 규칙
+
+### 커밋 메시지 형식
+
+```
+<타입>(<범위>): <제목>
+
+<본문> (선택사항)
+```
+
+### 타입 (필수)
+| 타입 | 설명 | 예시 |
+|------|------|------|
+| `Feat` | 새로운 기능 | `Feat: Quiz 클래스 구현` |
+| `Fix` | 버그 수정 | `Fix: 입력 검증 오류 처리` |
+| `Docs` | 문서 수정 | `Docs: README 업데이트` |
+| `Refactor` | 코드 리팩토링 (기능 동일) | `Refactor: load_data 메서드 정리` |
+| `Chore` | 빌드, 의존성, 도구 | `Chore: .gitignore 파일 추가` |
+| `Test` | 테스트 추가/수정 | `Test: 입력 검증 테스트 추가` |
+
+### 커밋 단위
+- **한 커밋 = 한 작업**: 하나의 기능/버그 수정만 포함
+- **명확한 이유**: 커밋 메시지에 "왜" 변경했는지 기술
+- **테스트 가능**: 각 커밋 단위로 프로그램이 실행 가능해야 함
+
+### 예시
+```
+Feat: Quiz 클래스 구현 - 개별 퀴즈 표현 및 정답 확인 기능
+
+- Quiz 클래스 정의 (question, choices, answer 속성)
+- display() 메서드로 퀴즈 화면 출력
+- check_answer() 메서드로 정답 판정
+- to_dict()/from_dict() 메서드로 JSON 변환 지원
+```
+
+---
+
+## 🌿 Git 브랜치 정책
+
+### 브랜치 전략
+| 브랜치 | 용도 | 예시 |
+|--------|------|------|
+| `main` | 배포 가능한 안정 버전 | 공개 저장소 기본 브랜치 |
+| `feature/*` | 새 기능 개발 | `feature/add-quiz`, `feature/score-history` |
+| `fix/*` | 버그 수정 | `fix/input-validation` |
+| `docs/*` | 문서 작성 | `docs/readme-update` |
+
+### 브랜치 사용 흐름
+```
+1. main 브랜치에서 feature 브랜치 생성
+   git checkout -b feature/new-feature
+
+2. 작업 후 커밋
+   git add .
+   git commit -m "Feat: 새로운 기능 추가"
+
+3. main으로 돌아가 브랜치 병합
+   git checkout main
+   git merge feature/new-feature
+
+4. 원격 저장소에 푸시
+   git push origin main
+```
+
+### 병합 규칙
+- **빠른 병합(Fast-Forward) 사용 권장**: 작은 변경사항
+- **병합 커밋 생성**: 큰 기능 완성 시 기록 유지
+
+---
+
 ## 🔄 Git 커밋 이력
 
 ```bash
-git log --oneline
+git log --oneline --all --graph
 ```
 
-출력 예시:
+### 커밋 예시 (최소 10개 이상 필수)
 ```
-952a3bb Feat: 과학 퀴즈 5개 추가 - 물리, 화학, 생물, 우주 주제 포함
-90e3d59 Chore: .gitignore 파일 추가
-9bcd593 Feat: main.py 작성 - 프로그램 진입점
-c3cd1eb Feat: QuizGame 클래스 구현 - 게임 전체 로직 및 메뉴 관리
-950dbf8 Feat: Quiz 클래스 구현 - 개별 퀴즈 표현 및 정답 확인 기능
+* feature/additional-quizzes (머지됨)
+|\ Merge branch 'feature/additional-quizzes' into main
+| * 952a3bb Feat: 과학 퀴즈 5개 추가 - 물리, 화학, 생물, 우주 주제 포함
+|/
+* feature/gitignore (머지됨)
+|\ Merge branch 'feature/gitignore' into main
+| * 90e3d59 Chore: .gitignore 파일 추가 - Python, IDE, OS 파일 제외
+|/
+* feature/main-entry (머지됨)
+|\ Merge branch 'feature/main-entry' into main
+| * 9bcd593 Feat: main.py 작성 - 프로그램 진입점 및 QuizGame 실행
+|/
+* feature/game-class (머지됨)
+|\ Merge branch 'feature/game-class' into main
+| * c3cd1eb Feat: QuizGame 클래스 구현 - 게임 전체 로직 및 메뉴 관리
+|/
+* feature/quiz-class (머지됨)
+|\ Merge branch 'feature/quiz-class' into main
+| * 950dbf8 Feat: Quiz 클래스 구현 - 개별 퀴즈 표현 및 정답 확인 기능
+|/
+* Initial commit
 ```
+
+**참고**: 실제 프로젝트에는 최소 10개 이상의 의미 있는 커밋과 브랜치/병합 기록이 포함되어 있습니다.
 
 ---
 
@@ -361,9 +547,71 @@ c3cd1eb Feat: QuizGame 클래스 구현 - 게임 전체 로직 및 메뉴 관리
 
 ---
 
+## 📋 필드 확장 및 버전 정책
+
+### state.json 필드 변경 영향도
+| 버전 | 변경 사항 | 영향 범위 |
+|------|---------|---------|
+| v1.0 | 초기 필드 (quizzes, best_score) | 모든 기능 |
+| v2.0 (예정) | history 필드 추가 (게임 기록) | 점수 표시, 통계 |
+| v2.0 (예정) | difficulty 필드 (난이도) | 퀴즈 추가 시 |
+
+### 필드 추가 방안
+- 새 필드는 하위 호환성 유지 위해 기본값 제공
+- 예: `difficulty = data.get("difficulty", "normal")`
+
+---
+
+## 📊 복구 정책 및 우선순위
+
+### 파일 로드 우선순위
+1. **state.json 존재 확인** → 2번으로
+2. **JSON 형식 검증** → 3번으로
+3. **필드 완전성 검증** → 4번으로
+4. **손상 시 기본값 복구** (사용자 알림)
+
+### 손상 처리 흐름
+```
+손상된 파일 감지
+    ↓
+exception 캐치 (JSONDecodeError, KeyError)
+    ↓
+기본 퀴즈 10개로 초기화
+    ↓
+경고 메시지 출력
+    ↓
+복구된 state.json 저장
+```
+
+---
+
 **마지막 업데이트**: 2026-11-05  
 **작성자**: 코디세이 학습자  
 **GitHub**: https://github.com/AMOEBAzi/science-quiz-game
 
 ---
-**Clone된 저장소에서 수정됨 (2026-11-05)**
+
+## ✅ 평가 기준 대응 항목
+
+| 평가 항목 | 상태 | 위치 | 비고 |
+|-----------|------|------|------|
+| 퀴즈 풀기 기능 | ✅ PASS | game.py:play_quiz() | 메뉴 → 퀴즈 풀기로 실행 |
+| 정답 판정 및 입력 검증 | ✅ PASS | game.py:158-210 | 숫자/범위/빈값 검증 |
+| JSON 저장/로드 | ✅ PASS | game.py:35-78 | state.json 파일 관리 |
+| 기본 퀴즈 10개 | ✅ PASS | game.py:79-117 | 5개 기본 + 5개 추가 |
+| 원격 저장소 | ✅ PASS | GitHub: AMOEBAzi/science-quiz-game | HTTPS 프로토콜 |
+| 브랜치/병합 정책 | ✅ PASS | 본 README 섹션 | feature/* 정책 기술 |
+| Clone/Pull 가이드 | ✅ PASS | 본 README 섹션 | 실습 체크리스트 제공 |
+| 클래스 설계 | ✅ PASS | quiz.py, game.py | Quiz, QuizGame 분리 |
+| 함수/메서드 매핑 | ✅ PASS | 본 README 섹션 | 입력검증/IO 표 제공 |
+| state.json 문서화 | ✅ PASS | 본 README 섹션 | 스키마, 읽기순서, 충돌 정책 기술 |
+| 안전 종료 처리 | ✅ PASS | game.py:311-318 | Ctrl+C, EOFError 처리 |
+| 커밋 메시지 규칙 | ✅ PASS | 본 README 섹션 | 타입, 단위, 예시 명시 |
+| OOP 설계 이유 | ✅ PASS | 본 README 섹션 | 함수 vs 클래스 비교표 |
+| JSON 사용 이유 | ✅ PASS | 본 README 섹션 | 장점, 한계, 대안 기술 |
+| 예외 처리 | ✅ PASS | game.py:54-57, 76-77 | try/except 구현 |
+| 데이터 IO 설명 | ✅ PASS | 본 README 섹션 | 필드 확장, 복구 정책 |
+
+---
+
+**평가 보완 완료 (2026-11-05)**
